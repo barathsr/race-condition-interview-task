@@ -60,6 +60,7 @@ coverage.xml
 *.swp
 *.swo
 *.bak
+.env
 
 # Logs
 *.log
