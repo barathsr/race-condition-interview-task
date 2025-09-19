@@ -1,4 +1,5 @@
 import json
+import os
 
 import redis.asyncio as redis
 from fastapi import APIRouter
@@ -6,8 +7,9 @@ from fastapi import APIRouter
 router = APIRouter(prefix="/redis", tags=["Redis"])
 
 room_id = "OPD-5"
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 
 
 @router.post("/submit/{username}/{points}")
