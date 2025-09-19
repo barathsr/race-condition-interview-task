@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Race condition Leaderboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 300px;
+    }
+
+    th,
+    td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Leaderboard</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Score</th>
+      </tr>
+    </thead>
+    <tbody id="leaderboard-body"></tbody>
+  </table>
+  <script>
+    const ws = new WebSocket("ws://127.0.0.1:8000/ws/leaderboard");
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const tbody = document.getElementById("leaderboard-body")
+      tbody.innerHTML = "";
+
+      data.leaderboard.forEach(item => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${item.username}</td><td>${item.score}</td>`;
+        tbody.appendChild(row);
+      });
+    }
+  </script>
+</body>
+
+</html>
