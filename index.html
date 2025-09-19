@@ -41,7 +41,11 @@
     <tbody id="leaderboard-body"></tbody>
   </table>
   <script>
+    try{
     const ws = new WebSocket("ws://127.0.0.1:8000/ws/leaderboard");
+
+    ws.onopen = () => console.log("connected!");
+    ws.onmessage = (msg) => console.log("update:", msg.data);
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -54,6 +58,10 @@
         tbody.appendChild(row);
       });
     }
+  }
+  catch (e){
+    console.log(e);
+  }
   </script>
 </body>
 
