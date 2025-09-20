@@ -2,12 +2,13 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from routers import auth, playground, redis, websocket
-from utils import openapi_config
+from utils import cors_config, openapi_config
 
 load_dotenv()
 
 app = FastAPI(title="Race Condition Interview Task")
 
+cors_config.setup_cors(app)
 
 app.include_router(playground.router)
 app.include_router(websocket.router)
