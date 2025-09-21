@@ -3,11 +3,15 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
-from fastapi import Header, HTTPException, WebSocket, WebSocketException, status
+from fastapi import Depends, HTTPException, WebSocket, WebSocketException, status
+from fastapi.security import APIKeyHeader
 
 JWT_SECRET = os.getenv("JWT_SECRET", "Zealous")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRY_MINUTES = int(os.getenv("JWT_EXPIRY_MINUTES", "60"))
+
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/login')
+api_key_scheme = APIKeyHeader(name="Authorization")
 
 
 def create_token(username: str) -> str:
@@ -36,18 +40,22 @@ def validate_token(token: str) -> str:
         )
 
 
-def get_current_user(authorization: str = Header(...)) -> str:
+def extract_bearer(authorization: Optional[str]) -> str:
     if not authorization:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authorization header missing",
         )
-    if not authorization.startswith("Bearer "):
+    if not authorization.lower().startswith("bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authorization header",
         )
-    token = authorization.split(" ")[1]
+    return authorization.split(" ", 1)[1].strip()
+
+
+def get_current_user(authorization: str = Depends(api_key_scheme)) -> str:
+    token = extract_bearer(authorization)
     return validate_token(token)
 
 
