@@ -81,7 +81,46 @@ async def websocket_room(websocket: WebSocket, room_id: str):
 
     try:
         while True:
-            await websocket.receive_text()
+            raw = await websocket.receive_text()
+            try:
+                msg = json.loads(raw)
+            except json.JSONDecodeError:
+                await websocket.send_json({"error": "Invalid JSON"})
+                continue
+            msg_type = msg.get("type")
+            if msg_type == "chat":
+                await redis_client.hincrby(f"room:{room_id}:stats", "message_sent", 1)
+
+                event = {
+                    "type": "chat",
+                    "username": username,
+                    "message": msg.get("message", ""),
+                    "timestamp": iso_now(),
+                }
+
+                await publish_room_event(room_id, event)
+            elif msg_type == "submission":
+                problem_id = msg.get("problem_id")
+                points = int(msg.get("points", 0))
+
+                await redis_client.hincrby(f"room:{room_id}:stats", "submissions", 1)
+
+                new_score = await redis_client.zincrby(
+                    f"room:{room_id}:leaderboard", points, username
+                )
+
+                event = {
+                    "type": "submission",
+                    "username": username,
+                    "problem_id": problem_id,
+                    "points": points,
+                    "new_score": new_score,
+                    "timestamp": iso_now(),
+                }
+                await publish_room_event(room_id, event)
+
+            else:
+                await websocket.send_json({"error": "unknown message type"})
     except WebSocketDisconnect:
         pass
     except Exception:
