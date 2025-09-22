@@ -1,12 +1,11 @@
-import redis.asyncio as redis
 from fastapi import APIRouter
+
+from services.redis_setup import redis_client
 
 router = APIRouter(
     prefix="/playground",
     tags=["Playground"],
 )
-
-redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
 room_id = "OPD-5"
 

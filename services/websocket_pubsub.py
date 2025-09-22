@@ -1,14 +1,11 @@
 import asyncio
 import json
-import os
 from datetime import datetime, timezone
 from typing import Dict
 
-import redis.asyncio as redis
 from fastapi import WebSocket
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+from services.redis_setup import redis_client
 
 connected: Dict[str, set[WebSocket]] = {}
 pubsub_tasks: Dict[str, asyncio.Task] = {}
