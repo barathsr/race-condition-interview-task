@@ -1,8 +1,7 @@
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from dependencies.auth import get_current_user
+from helpers.redis import generate_room_id
 from services.redis_setup import redis_client
 from services.websocket_pubsub import iso_now
 
@@ -46,18 +45,30 @@ async def get_all_rooms_admin(user=Depends(get_current_user)):
 
 @router.get("/")
 async def get_all_rooms(user=Depends(get_current_user)):
+    username = user["username"]
     room_ids = await redis_client.smembers("rooms:all")
+    print(room_ids)
     rooms = []
+
     for room_id in room_ids:
-        meta = await redis_client.hgetall(f"room:{room_id}:meta")
         members = await redis_client.smembers(f"room:{room_id}:members")
-        rooms.append({"room_id": room_id, "meta": meta, "members": list(members)})
+        print("Room:", room_id)
+        print("Members raw:", members)
+        print("Current user:", username.encode())
+        if username.encode() not in members:
+            continue
+
+        meta = await redis_client.hgetall(f"room:{room_id}:meta")
+        rooms.append(
+            {"room_id": room_id, "meta": meta, "members": [m.decode() for m in members]}
+        )
+
     return {"rooms": rooms}
 
 
 @router.post("/create")
 async def create_room(user=Depends(get_current_user)):
-    room_id = str(uuid.uuid4())
+    room_id = await generate_room_id()
     key = f"room:{room_id}:meta"
 
     await redis_client.hset(
@@ -68,6 +79,8 @@ async def create_room(user=Depends(get_current_user)):
         },
     )
 
+    await redis_client.sadd(f"room:{room_id}:members", user["username"])
+    await redis_client.sadd("rooms:all", room_id)
     return {"room_id": room_id, "owner": user["username"]}
 
 
@@ -99,7 +112,7 @@ async def delete_room(room_id: str, user=Depends(get_current_user)):
             status_code=status.HTTP_404_NOT_FOUND, detail="Room not found"
         )
 
-    owner = meta.get("owner")
+    owner = meta.get(b"owner", b"").decode()
     if owner != user["username"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -115,6 +128,7 @@ async def delete_room(room_id: str, user=Depends(get_current_user)):
         f"room:{room_id}:users",
         f"room:{room_id}:history",
     )
+    await redis_client.srem("rooms:all", room_id)  # ✅ cleanup global set
 
     return {"message": f"Room {room_id} deleted successfully"}
 

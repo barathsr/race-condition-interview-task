@@ -51,5 +51,5 @@ async def login(login_request: AuthRequest):
 
 
 @router.get("/me", response_model=UserResponse)
-def me(current_user: str = Depends(get_current_user)):
+def me(current_user: dict = Depends(get_current_user)):
     return {"username": current_user["username"]}
