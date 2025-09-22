@@ -8,7 +8,7 @@ router = APIRouter(
 
 redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
-room_id = "OPD5"
+room_id = "OPD-5"
 
 
 @router.get("/redis-ping")
