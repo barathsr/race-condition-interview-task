@@ -109,12 +109,22 @@ async def websocket_room(websocket: WebSocket, room_id: str):
                     f"room:{room_id}:leaderboard", points, username
                 )
 
+                bonus_awarded = False
+                key_first = f"problem:{room_id}:{problem_id}:firs_solver"
+                if await redis_client.set(key_first, username, nx=True):
+                    bonus_points = 10
+                    new_score = await redis_client.zincrby(
+                        f"room:{room_id}:leaderboard", bonus_points, username
+                    )
+                    bonus_awarded = True
+
                 event = {
                     "type": "submission",
                     "username": username,
                     "problem_id": problem_id,
                     "points": points,
                     "new_score": new_score,
+                    "bonus_awarded": bonus_awarded,
                     "timestamp": iso_now(),
                 }
                 await publish_room_event(room_id, event)
