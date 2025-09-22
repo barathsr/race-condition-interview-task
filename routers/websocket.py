@@ -89,7 +89,7 @@ async def websocket_room(websocket: WebSocket, room_id: str):
                 continue
             msg_type = msg.get("type")
             if msg_type == "chat":
-                await redis_client.hincrby(f"room:{room_id}:stats", "message_sent", 1)
+                await redis_client.hincrby(f"room:{room_id}:stats", "messages_sent", 1)
 
                 event = {
                     "type": "chat",
@@ -103,6 +103,9 @@ async def websocket_room(websocket: WebSocket, room_id: str):
                 problem_id = msg.get("problem_id")
                 points = int(msg.get("points", 0))
 
+                if not problem_id or points <= 0:
+                    continue
+
                 await redis_client.hincrby(f"room:{room_id}:stats", "submissions", 1)
 
                 new_score = await redis_client.zincrby(
@@ -110,7 +113,7 @@ async def websocket_room(websocket: WebSocket, room_id: str):
                 )
 
                 bonus_awarded = False
-                key_first = f"problem:{room_id}:{problem_id}:firs_solver"
+                key_first = f"problem:{room_id}:{problem_id}:first_solver"
                 if await redis_client.set(key_first, username, nx=True):
                     bonus_points = 10
                     new_score = await redis_client.zincrby(
