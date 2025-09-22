@@ -104,6 +104,50 @@ async def join_room(room_id: str, user=Depends(get_current_user)):
         )
 
 
+@router.post("leave/{room_id}")
+async def leave_room(room_id: str, user=Depends(get_current_user)):
+    try:
+        username = user["username"]
+        exists = await redis_client.exists(f"room:{room_id}:meta")
+        if not exists:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="room not found"
+            )
+        await redis_client.srem(f"room:{room_id}:members", username)
+
+        members = await redis_client.smembers(f"room:{room_id}:members")
+        members = [m.decode() for m in members]
+
+        meta = await redis_client.hgetall(f"room:{room_id}:meta")
+        owner = meta.get("owner")
+
+        if username == owner:
+            if members:
+                new_owner = members[-1]
+                await redis_client.hset(f"room:{room_id}:meta", owner, new_owner)
+                return {
+                    "message": f"{username} left. Ownership transferred to {new_owner}.",
+                    "new_owner": new_owner,
+                }
+        else:
+            await redis_client.delete(
+                f"room:{room_id}:meta",
+                f"room:{room_id}:members",
+                f"room:{room_id}:leaderboard",
+                f"room:{room_id}:stats",
+                f"room:{room_id}:events",
+                f"room:{room_id}:users",
+                f"room:{room_id}:history",
+            )
+
+            return {
+                "message": f"{username} left. No members remaining, room {room_id} deleted."
+            }
+        return {"message": f"{username} left room {room_id}"}
+    except HTTPException:
+        raise
+
+
 @router.delete("/{room_id}")
 async def delete_room(room_id: str, user=Depends(get_current_user)):
     meta = await redis_client.hgetall(f"room:{room_id}:meta")
@@ -112,7 +156,7 @@ async def delete_room(room_id: str, user=Depends(get_current_user)):
             status_code=status.HTTP_404_NOT_FOUND, detail="Room not found"
         )
 
-    owner = meta.get(b"owner", b"").decode()
+    owner = meta.get("owner")
     if owner != user["username"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -128,7 +172,7 @@ async def delete_room(room_id: str, user=Depends(get_current_user)):
         f"room:{room_id}:users",
         f"room:{room_id}:history",
     )
-    await redis_client.srem("rooms:all", room_id)  # ✅ cleanup global set
+    await redis_client.srem("rooms:all", room_id)
 
     return {"message": f"Room {room_id} deleted successfully"}
 
