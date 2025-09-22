@@ -19,12 +19,24 @@ def k_event_channel(room_id: str) -> str:
     return f"room:{room_id}:events"
 
 
+def k_stats(room_id: str) -> str:
+    return f"room:{room_id}:stats"
+
+
+def k_history(room_id: str) -> str:
+    return f"room:{room_id}:history"
+
+
 def iso_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-async def publish_room_event(room_id: str, event: dict):
-    await redis_client.publish(k_event_channel(room_id), json.dumps(event))
+async def publish_room_event(room_id: str, event: dict, history_max: int = 100):
+    payload = json.dumps(event)
+    await redis_client.publish(k_event_channel(room_id), payload)
+    await redis_client.lpush(k_history(room_id), payload)
+    await redis_client.ltrim(k_history(room_id), 0, history_max - 1)
+    await redis_client.hincrby(k_stats(room_id), "message_sent", 1)
 
 
 async def room_pubsub_worker(room_id: str):

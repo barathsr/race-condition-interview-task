@@ -49,7 +49,7 @@ async def register_user(username: str, password: str) -> str:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e)
 
 
-async def login_user(username=str, password=str) -> str:
+async def login_user(username=str, password=str) -> dict:
     try:
         user_data = await redis_client.hgetall(f"user:{username}")
 
@@ -125,7 +125,8 @@ def extract_bearer(authorization: Optional[str]) -> str:
 
 def get_current_user(authorization: str = Depends(api_key_scheme)) -> str:
     token = extract_bearer(authorization)
-    return validate_token(token)
+    username = validate_token(token)
+    return {"username": username}
 
 
 async def get_user_from_websocket(websocket: WebSocket, token: str) -> str:

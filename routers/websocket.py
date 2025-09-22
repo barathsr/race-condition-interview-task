@@ -88,7 +88,9 @@ async def websocket_room(websocket: WebSocket, room_id: str):
             except json.JSONDecodeError:
                 await websocket.send_json({"error": "Invalid JSON"})
                 continue
+
             msg_type = msg.get("type")
+
             if msg_type == "chat":
                 await redis_client.hincrby(f"room:{room_id}:stats", "messages_sent", 1)
 
@@ -100,11 +102,13 @@ async def websocket_room(websocket: WebSocket, room_id: str):
                 }
 
                 await publish_room_event(room_id, event)
+
             elif msg_type == "submission":
                 problem_id = msg.get("problem_id")
                 points = int(msg.get("points", 0))
 
                 if not problem_id or points <= 0:
+                    await websocket.send_json({"error": "Invalid problem_id or points"})
                     continue
 
                 await redis_client.hincrby(f"room:{room_id}:stats", "submissions", 1)
@@ -179,12 +183,12 @@ async def websocketEndpoint(websocket: WebSocket):
     await websocket.accept()
     room_id = "OPD-5"
     pubsub = redis_client.pubsub()
-    await pubsub.subscribe(f"room:{room_id}:channel")
+    await pubsub.subscribe(f"room:{room_id}:events")
     try:
         async for message in pubsub.listen():
             if message["type"] == "message":
                 data = json.loads(message["data"])
                 await websocket.send_json(data)
     finally:
-        await pubsub.unsubscribe(f"room:{room_id}:channel")
+        await pubsub.unsubscribe(f"room:{room_id}:events")
         await pubsub.close()

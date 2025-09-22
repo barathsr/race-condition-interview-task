@@ -21,5 +21,5 @@ async def submitScore(username: str, points: int):
     leaderboard = [{"username": user, "score": int(score)} for user, score in scores]
 
     update_message = json.dumps({"room_id": room_id, "leaderboard": leaderboard})
-    await redis_client.publish(f"room:{room_id}:channel", update_message)
+    await redis_client.publish(f"room:{room_id}:events", update_message)
     return {"username": username, "new_score": new_score}
