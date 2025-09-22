@@ -10,6 +10,7 @@ from fastapi import (
 )
 
 from dependencies.auth import get_user_from_websocket
+from helpers.redis import get_leaderboard
 from services.websocket_pubsub import (
     connected,
     iso_now,
@@ -131,6 +132,16 @@ async def websocket_room(websocket: WebSocket, room_id: str):
                     "timestamp": iso_now(),
                 }
                 await publish_room_event(room_id, event)
+
+                leaderboard_snapshot = await get_leaderboard(room_id, top_n=50)
+                scoreboard_event = {
+                    "type": "system",
+                    "action": "scoreboard_update",
+                    "leaderboard": leaderboard_snapshot,
+                    "timestamp": iso_now(),
+                }
+
+                await publish_room_event(room_id, scoreboard_event)
 
             else:
                 await websocket.send_json({"error": "unknown message type"})
